@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 import pypdf
@@ -34,6 +35,10 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
         if extracted:
             text += extracted + "\n"
     return text
+
+@app.get("/")
+async def serve_home():
+    return FileResponse("index.html")
 
 @app.post("/analyze")
 async def analyze_resume(
