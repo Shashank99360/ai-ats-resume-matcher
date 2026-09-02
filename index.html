@@ -3,195 +3,149 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI ATS Resume Optimizer</title>
+  <title>AI ATS Resume Matcher</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen py-10 px-4">
-  <div class="max-w-6xl mx-auto">
-    <!-- Header -->
-    <header class="text-center mb-10">
-      <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-900 tracking-tight">AI ATS Resume Optimizer</h1>
-      <p class="text-slate-500 mt-2 text-sm md:text-base">Get instant AI-driven match score and ATS improvement feedback</p>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+  <div class="max-w-4xl mx-auto">
+    <header class="text-center mb-8">
+      <h1 class="text-3xl md:text-4xl font-extrabold text-blue-400">AI ATS Resume Matcher & Optimizer</h1>
+      <p class="text-slate-400 mt-2">Evaluate compatibility and upgrade your bullet points with zero formatting loss.</p>
     </header>
 
-    <!-- Main Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <!-- Input Panel -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-file-pdf text-indigo-600"></i> 1. Upload Resume (PDF)
-        </h2>
-        
-        <label class="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 transition p-6 rounded-xl flex flex-col items-center justify-center cursor-pointer mb-6">
-          <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-600 mb-2"></i>
-          <span id="fileName" class="text-sm font-medium text-slate-600 text-center">Click to select your PDF resume</span>
-          <input type="file" id="resumeInput" accept=".pdf" class="hidden" />
-        </label>
-
-        <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-briefcase text-indigo-600"></i> 2. Target Job Description
-        </h2>
-        <textarea id="jdInput" rows="6" placeholder="Paste the job description here..." class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm resize-none"></textarea>
-
-        <div id="errorMsg" class="text-red-500 text-xs mt-2 hidden font-medium"></div>
-
-        <button id="analyzeBtn" onclick="runAnalysis()" class="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition shadow-md flex items-center justify-center gap-2">
-          <span>Analyze Compatibility</span>
-        </button>
+    <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 space-y-6">
+      <div>
+        <label class="block text-sm font-semibold mb-2 text-slate-300">1. Upload Resume (PDF only)</label>
+        <input type="file" id="resume" accept=".pdf" class="w-full text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" />
       </div>
 
-      <!-- Results Panel -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-chart-pie text-indigo-600"></i> Evaluation Report
-        </h2>
+      <div>
+        <label class="block text-sm font-semibold mb-2 text-slate-300">2. Job Description (JD)</label>
+        <textarea id="jd" rows="5" placeholder="Paste the target job description here..." class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-slate-100"></textarea>
+      </div>
 
-        <!-- Placeholder -->
-        <div id="placeholder" class="h-80 flex flex-col items-center justify-center text-slate-400 text-center">
-          <i class="fa-regular fa-file-lines text-5xl mb-3 text-slate-300"></i>
-          <p class="text-sm">Upload resume and job description to see detailed AI evaluation.</p>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <button id="analyzeBtn" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl transition shadow-lg">
+          🔍 Analyze Match Score
+        </button>
+        <button id="improveBtn" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl transition shadow-lg">
+          ✨ Enhance My Bullet Points
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results" class="hidden mt-8 space-y-6">
+      <div id="analysisCard" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
+        <h2 class="text-xl font-bold text-blue-400">ATS Match Report</h2>
+        <div class="flex items-center gap-4">
+          <span class="text-4xl font-extrabold text-emerald-400" id="scoreText">0%</span>
+          <span class="text-slate-400 text-sm">Keyword Compatibility Score</span>
         </div>
-
-        <!-- Loader -->
-        <div id="loader" class="h-80 flex flex-col items-center justify-center text-indigo-600 hidden text-center">
-          <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-3"></i>
-          <p class="text-sm font-semibold text-slate-700">Evaluating your profile against JD...</p>
-        </div>
-
-        <!-- Result Container -->
-        <div id="resultContent" class="space-y-5 hidden">
-          <!-- Score Box -->
-          <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
-            <div>
-              <p class="text-xs text-indigo-600 font-semibold uppercase tracking-wider">ATS Match Score</p>
-              <p class="text-sm text-slate-600">Based on semantic keyword matching</p>
-            </div>
-            <span id="scoreText" class="text-4xl font-extrabold text-indigo-600">0%</span>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="bg-slate-900 p-4 rounded-xl">
+            <h3 class="font-bold text-emerald-400 mb-2">Matched Skills</h3>
+            <ul id="matchedList" class="list-disc list-inside text-sm space-y-1 text-slate-300"></ul>
           </div>
-
-          <!-- Summary -->
-          <div>
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Executive Summary</h3>
-            <p id="summaryText" class="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100"></p>
-          </div>
-
-          <!-- Missing Skills -->
-          <div>
-            <h3 class="text-xs font-bold text-red-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <i class="fa-solid fa-triangle-exclamation"></i> Missing Skills
-            </h3>
-            <div id="missingSkills" class="flex flex-wrap gap-2"></div>
-          </div>
-
-          <!-- Strengths -->
-          <div>
-            <h3 class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <i class="fa-solid fa-circle-check"></i> Key Strengths
-            </h3>
-            <div id="strengthsList" class="flex flex-wrap gap-2"></div>
-          </div>
-
-          <!-- Suggestions -->
-          <div>
-            <h3 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <i class="fa-solid fa-lightbulb"></i> Improvement Recommendations
-            </h3>
-            <ul id="suggestionsList" class="list-disc pl-5 text-sm text-slate-700 space-y-1"></ul>
+          <div class="bg-slate-900 p-4 rounded-xl">
+            <h3 class="font-bold text-red-400 mb-2">Missing Skills</h3>
+            <ul id="missingList" class="list-disc list-inside text-sm space-y-1 text-slate-300"></ul>
           </div>
         </div>
+      </div>
+
+      <div id="bulletsCard" class="hidden bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
+        <h2 class="text-xl font-bold text-emerald-400">Targeted Bullet Enhancements (Copy & Paste to your Resume)</h2>
+        <div id="bulletsContainer" class="space-y-4"></div>
       </div>
     </div>
   </div>
 
   <script>
-    const fileInput = document.getElementById('resumeInput');
-    const fileName = document.getElementById('fileName');
+    const resumeInput = document.getElementById("resume");
+    const jdInput = document.getElementById("jd");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const improveBtn = document.getElementById("improveBtn");
+    const resultsDiv = document.getElementById("results");
 
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        fileName.textContent = e.target.files[0].name;
-        fileName.classList.add('text-indigo-600', 'font-semibold');
+    function validate() {
+      if (!resumeInput.files[0] || !jdInput.value.trim()) {
+        alert("Please select a PDF resume and paste the Job Description.");
+        return false;
+      }
+      return true;
+    }
+
+    analyzeBtn.addEventListener("click", async () => {
+      if (!validate()) return;
+      analyzeBtn.innerText = "Analyzing...";
+      analyzeBtn.disabled = true;
+
+      const fd = new FormData();
+      fd.append("resume", resumeInput.files[0]);
+      fd.append("job_description", jdInput.value);
+
+      try {
+        const res = await fetch("/analyze", { method: "POST", body: fd });
+        const json = await res.json();
+        const data = json.data;
+
+        document.getElementById("scoreText").innerText = data.match_score + "%";
+        document.getElementById("matchedList").innerHTML = data.matched_skills.map(s => `<li>${s}</li>`).join("");
+        document.getElementById("missingList").innerHTML = data.missing_skills.map(s => `<li>${s}</li>`).join("");
+
+        resultsDiv.classList.remove("hidden");
+        document.getElementById("analysisCard").classList.remove("hidden");
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        analyzeBtn.innerText = "🔍 Analyze Match Score";
+        analyzeBtn.disabled = false;
       }
     });
 
-    async function runAnalysis() {
-      const file = fileInput.files[0];
-      const jd = document.getElementById('jdInput').value.trim();
-      const errorMsg = document.getElementById('errorMsg');
-      const placeholder = document.getElementById('placeholder');
-      const loader = document.getElementById('loader');
-      const resultContent = document.getElementById('resultContent');
+    improveBtn.addEventListener("click", async () => {
+      if (!validate()) return;
+      improveBtn.innerText = "Generating...";
+      improveBtn.disabled = true;
 
-      errorMsg.classList.add('hidden');
-
-      if (!file || !jd) {
-        errorMsg.textContent = 'Please provide both resume PDF and job description.';
-        errorMsg.classList.remove('hidden');
-        return;
-      }
-
-      placeholder.classList.add('hidden');
-      resultContent.classList.add('hidden');
-      loader.classList.remove('hidden');
-
-      const formData = new FormData();
-      formData.append('resume', file);
-      formData.append('job_description', jd);
+      const fd = new FormData();
+      fd.append("resume", resumeInput.files[0]);
+      fd.append("job_description", jdInput.value);
 
       try {
-        const res = await fetch('/analyze', {
-          method: 'POST',
-          body: formData
+        const res = await fetch("/improve-bullets", { method: "POST", body: fd });
+        const json = await res.json();
+        const bullets = json.data.improved_bullets;
+
+        const container = document.getElementById("bulletsContainer");
+        container.innerHTML = "";
+
+        bullets.forEach((item, index) => {
+          const card = document.createElement("div");
+          card.className = "p-4 bg-slate-900 rounded-xl border border-slate-700 space-y-2";
+          card.innerHTML = `
+            <p class="text-xs text-slate-500 uppercase tracking-wide">Original Bullet</p>
+            <p class="text-sm text-slate-400 line-through">${item.original}</p>
+            <p class="text-xs text-emerald-400 uppercase tracking-wide mt-2">ATS-Optimized Version</p>
+            <div class="flex items-start justify-between gap-4">
+              <p class="text-sm text-slate-100 font-medium">${item.improved}</p>
+              <button onclick="navigator.clipboard.writeText('${item.improved.replace(/'/g, "\\'")}'); alert('Copied to clipboard!');" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-xs rounded-md text-slate-200">Copy</button>
+            </div>
+            <p class="text-xs text-slate-400 italic">💡 Reason: ${item.reason}</p>
+          `;
+          container.appendChild(card);
         });
-        const data = await res.json();
 
-        if (data.status === 'success') {
-          const report = data.data;
-          document.getElementById('scoreText').textContent = report.match_score + '%';
-          document.getElementById('summaryText').textContent = report.summary;
-
-          // Missing skills
-          const missingContainer = document.getElementById('missingSkills');
-          missingContainer.innerHTML = '';
-          (report.missing_skills || []).forEach(skill => {
-            const span = document.createElement('span');
-            span.className = 'bg-red-50 text-red-700 border border-red-200 text-xs px-2.5 py-1 rounded-full font-medium';
-            span.textContent = skill;
-            missingContainer.appendChild(span);
-          });
-
-          // Strengths
-          const strengthsContainer = document.getElementById('strengthsList');
-          strengthsContainer.innerHTML = '';
-          (report.strengths || []).forEach(st => {
-            const span = document.createElement('span');
-            span.className = 'bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-2.5 py-1 rounded-full font-medium';
-            span.textContent = st;
-            strengthsContainer.appendChild(span);
-          });
-
-          // Suggestions
-          const suggestionsContainer = document.getElementById('suggestionsList');
-          suggestionsContainer.innerHTML = '';
-          (report.improvement_suggestions || []).forEach(sug => {
-            const li = document.createElement('li');
-            li.textContent = sug;
-            suggestionsContainer.appendChild(li);
-          });
-
-          loader.classList.add('hidden');
-          resultContent.classList.remove('hidden');
-        } else {
-          throw new Error(data.message || 'Error parsing response');
-        }
+        resultsDiv.classList.remove("hidden");
+        document.getElementById("bulletsCard").classList.remove("hidden");
       } catch (err) {
-        loader.classList.add('hidden');
-        placeholder.classList.remove('hidden');
-        errorMsg.textContent = 'Backend Error: Make sure uvicorn backend is running on port 8000.';
-        errorMsg.classList.remove('hidden');
+        alert("Error: " + err.message);
+      } finally {
+        improveBtn.innerText = "✨ Enhance My Bullet Points";
+        improveBtn.disabled = false;
       }
-    }
+    });
   </script>
 </body>
 </html>

@@ -1,19 +1,18 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from google import genai
-import pypdf
-import io
-import json
 import os
+import json
+import io
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pypdf import PdfReader
+from google import genai
 from dotenv import load_dotenv
 
-# Load API key
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY .env file me nahi mili!")
+    raise ValueError("GEMINI_API_KEY environment variable not set")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -27,65 +26,96 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def extract_text_from_pdf(pdf_bytes: bytes) -> str:
-    pdf_reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+def extract_text_from_pdf(file_bytes: bytes) -> str:
+    pdf_reader = PdfReader(io.BytesIO(file_bytes))
     text = ""
     for page in pdf_reader.pages:
         extracted = page.extract_text()
         if extracted:
             text += extracted + "\n"
-    return text
+    return text.strip()
 
 @app.get("/")
 async def serve_home():
     return FileResponse("index.html")
 
 @app.post("/analyze")
-async def analyze_resume(
-    resume: UploadFile = File(...),
-    job_description: str = Form(...)
-):
-    if not resume.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Sirf PDF files supported hain.")
+async def analyze_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
+    if not resume.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
-    pdf_bytes = await resume.read()
-    resume_text = extract_text_from_pdf(pdf_bytes)
+    file_bytes = await resume.read()
+    resume_text = extract_text_from_pdf(file_bytes)
 
-    if not resume_text.strip():
-        raise HTTPException(status_code=400, detail="PDF se text extract nahi ho paya.")
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
 
     prompt = f"""
-    You are an expert HR and ATS (Applicant Tracking System) specialist.
-    Analyze the following candidate's Resume against the provided Job Description.
-
-    Candidate Resume:
+    You are an expert ATS scanner. Analyze this resume against the JD:
+    Resume:
     {resume_text}
 
-    Target Job Description:
+    Job Description:
     {job_description}
 
-    Provide the output strictly in valid JSON format with these exact keys:
+    Return JSON only without markdown backticks:
     {{
-        "match_score": <integer score between 0 and 100>,
-        "summary": "<2-3 sentence overview of candidate suitability>",
-        "missing_skills": ["<skill 1>", "<skill 2>"],
-        "strengths": ["<strength 1>", "<strength 2>"],
-        "improvement_suggestions": ["<suggestion 1>", "<suggestion 2>"]
+        "match_score": 75,
+        "matched_skills": ["Skill 1", "Skill 2"],
+        "missing_skills": ["Skill 3", "Skill 4"],
+        "recommendations": ["Recommendation 1", "Recommendation 2"]
     }}
-    Do not wrap the output in code markdown. Return pure JSON only.
     """
 
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=prompt,
+            contents=prompt
         )
-        response_clean = response.text.replace("```json", "").replace("```", "").strip()
-        result = json.loads(response_clean)
-        return {"status": "success", "data": result}
+        cleaned = response.text.replace("```json", "").replace("```", "").strip()
+        return {"status": "success", "data": json.loads(cleaned)}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/")
-def home():
-    return {"message": "AI ATS Backend server is running successfully!"}
+@app.post("/improve-bullets")
+async def improve_bullets(resume: UploadFile = File(...), job_description: str = Form(...)):
+    if not resume.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    file_bytes = await resume.read()
+    resume_text = extract_text_from_pdf(file_bytes)
+
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
+
+    prompt = f"""
+    You are an elite ATS resume optimizer. Do NOT change the user's career facts, company names, or resume structure.
+    Find specific weak bullet points or project lines in this resume that miss keywords from the Job Description, and rewrite ONLY those lines to be high-impact, keyword-rich, and metric-driven.
+
+    Resume:
+    {resume_text}
+
+    Job Description:
+    {job_description}
+
+    Return response STRICTLY in valid JSON without backticks:
+    {{
+        "improved_bullets": [
+            {{
+                "original": "Original line from resume",
+                "improved": "Rewritten ATS-optimized line with JD keywords",
+                "reason": "Why this improves ATS ranking"
+            }}
+        ]
+    }}
+    """
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        cleaned = response.text.replace("```json", "").replace("```", "").strip()
+        return {"status": "success", "data": json.loads(cleaned)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
