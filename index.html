@@ -88,16 +88,21 @@
       try {
         const res = await fetch("/analyze", { method: "POST", body: fd });
         const json = await res.json();
+        
+        if (!res.ok || !json.data) {
+          throw new Error(json.detail || "Invalid response format from server");
+        }
+        
         const data = json.data;
-
-        document.getElementById("scoreText").innerText = data.match_score + "%";
-        document.getElementById("matchedList").innerHTML = data.matched_skills.map(s => `<li>${s}</li>`).join("");
-        document.getElementById("missingList").innerHTML = data.missing_skills.map(s => `<li>${s}</li>`).join("");
+        document.getElementById("scoreText").innerText = (data.match_score || 0) + "%";
+        document.getElementById("matchedList").innerHTML = (data.matched_skills || []).map(s => `<li>${s}</li>`).join("");
+        document.getElementById("missingList").innerHTML = (data.missing_skills || []).map(s => `<li>${s}</li>`).join("");
 
         resultsDiv.classList.remove("hidden");
         document.getElementById("analysisCard").classList.remove("hidden");
+        document.getElementById("analysisCard").scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
-        alert("Error: " + err.message);
+        alert("Analysis Error: " + err.message);
       } finally {
         analyzeBtn.innerText = "🔍 Analyze Match Score";
         analyzeBtn.disabled = false;
@@ -116,31 +121,36 @@
       try {
         const res = await fetch("/improve-bullets", { method: "POST", body: fd });
         const json = await res.json();
-        const bullets = json.data.improved_bullets;
+        
+        if (!res.ok || !json.data || !json.data.improved_bullets) {
+          throw new Error(json.detail || "Invalid bullets response from server");
+        }
 
+        const bullets = json.data.improved_bullets;
         const container = document.getElementById("bulletsContainer");
         container.innerHTML = "";
 
-        bullets.forEach((item, index) => {
+        bullets.forEach((item) => {
           const card = document.createElement("div");
           card.className = "p-4 bg-slate-900 rounded-xl border border-slate-700 space-y-2";
           card.innerHTML = `
             <p class="text-xs text-slate-500 uppercase tracking-wide">Original Bullet</p>
-            <p class="text-sm text-slate-400 line-through">${item.original}</p>
+            <p class="text-sm text-slate-400 line-through">${item.original || "N/A"}</p>
             <p class="text-xs text-emerald-400 uppercase tracking-wide mt-2">ATS-Optimized Version</p>
             <div class="flex items-start justify-between gap-4">
               <p class="text-sm text-slate-100 font-medium">${item.improved}</p>
-              <button onclick="navigator.clipboard.writeText('${item.improved.replace(/'/g, "\\'")}'); alert('Copied to clipboard!');" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-xs rounded-md text-slate-200">Copy</button>
+              <button onclick="navigator.clipboard.writeText(\`${(item.improved || '').replace(/`/g, '\\`')}\`); alert('Copied to clipboard!');" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-xs rounded-md text-slate-200 shrink-0">Copy</button>
             </div>
-            <p class="text-xs text-slate-400 italic">💡 Reason: ${item.reason}</p>
+            <p class="text-xs text-slate-400 italic">💡 Reason: ${item.reason || "Enhanced for JD alignment"}</p>
           `;
           container.appendChild(card);
         });
 
         resultsDiv.classList.remove("hidden");
         document.getElementById("bulletsCard").classList.remove("hidden");
+        document.getElementById("bulletsCard").scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
-        alert("Error: " + err.message);
+        alert("Optimization Error: " + err.message);
       } finally {
         improveBtn.innerText = "✨ Enhance My Bullet Points";
         improveBtn.disabled = false;

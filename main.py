@@ -1,6 +1,7 @@
 import os
 import json
 import io
+import re
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -35,6 +36,14 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
             text += extracted + "\n"
     return text.strip()
 
+def clean_json_response(raw_text: str) -> dict:
+    match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+    if match:
+        clean_str = match.group(0)
+    else:
+        clean_str = raw_text.replace("```json", "").replace("```", "").strip()
+    return json.loads(clean_str)
+
 @app.get("/")
 async def serve_home():
     return FileResponse("index.html")
@@ -51,19 +60,20 @@ async def analyze_resume(resume: UploadFile = File(...), job_description: str = 
         raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
 
     prompt = f"""
-    You are an expert ATS scanner. Analyze this resume against the JD:
+    You are an expert ATS scanner. Analyze this resume against the JD.
+    
     Resume:
     {resume_text}
 
     Job Description:
     {job_description}
 
-    Return JSON only without markdown backticks:
+    Return ONLY a valid raw JSON object. No conversation, no markdown code block:
     {{
-        "match_score": 75,
-        "matched_skills": ["Skill 1", "Skill 2"],
-        "missing_skills": ["Skill 3", "Skill 4"],
-        "recommendations": ["Recommendation 1", "Recommendation 2"]
+        "match_score": 78,
+        "matched_skills": ["Skill1", "Skill2"],
+        "missing_skills": ["Skill3", "Skill4"],
+        "recommendations": ["Recommendation1"]
     }}
     """
 
@@ -72,10 +82,10 @@ async def analyze_resume(resume: UploadFile = File(...), job_description: str = 
             model="gemini-2.5-flash",
             contents=prompt
         )
-        cleaned = response.text.replace("```json", "").replace("```", "").strip()
-        return {"status": "success", "data": json.loads(cleaned)}
+        data = clean_json_response(response.text)
+        return {"status": "success", "data": data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"LLM Processing Error: {str(e)}")
 
 @app.post("/improve-bullets")
 async def improve_bullets(resume: UploadFile = File(...), job_description: str = Form(...)):
@@ -89,22 +99,22 @@ async def improve_bullets(resume: UploadFile = File(...), job_description: str =
         raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
 
     prompt = f"""
-    You are an elite ATS resume optimizer. Do NOT change the user's career facts, company names, or resume structure.
-    Find specific weak bullet points or project lines in this resume that miss keywords from the Job Description, and rewrite ONLY those lines to be high-impact, keyword-rich, and metric-driven.
-
+    You are an expert ATS resume editor. Do NOT invent fake companies or positions.
+    Identify 3 to 5 weak bullet points or project details from this resume and rewrite them to naturally incorporate keywords from the JD.
+    
     Resume:
     {resume_text}
 
     Job Description:
     {job_description}
 
-    Return response STRICTLY in valid JSON without backticks:
+    Return ONLY a valid raw JSON object. No conversation, no markdown code block:
     {{
         "improved_bullets": [
             {{
                 "original": "Original line from resume",
-                "improved": "Rewritten ATS-optimized line with JD keywords",
-                "reason": "Why this improves ATS ranking"
+                "improved": "High-impact ATS-friendly rewritten line",
+                "reason": "Why this aligns better with the target role"
             }}
         ]
     }}
@@ -115,7 +125,7 @@ async def improve_bullets(resume: UploadFile = File(...), job_description: str =
             model="gemini-2.5-flash",
             contents=prompt
         )
-        cleaned = response.text.replace("```json", "").replace("```", "").strip()
-        return {"status": "success", "data": json.loads(cleaned)}
+        data = clean_json_response(response.text)
+        return {"status": "success", "data": data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"LLM Processing Error: {str(e)}")
